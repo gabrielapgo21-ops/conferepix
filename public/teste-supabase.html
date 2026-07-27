@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teste direto Supabase</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; background: #f9fafb; color: #111; padding: 20px; max-width: 700px; margin: 0 auto; }
+    h1 { font-size: 22px; }
+    .box { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 12px 0; }
+    label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 600; }
+    input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; box-sizing: border-box; font-family: monospace; }
+    button { background: #1D6EE6; color: white; border: 0; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 12px; }
+    button:disabled { background: #9ca3af; }
+    pre { background: #f3f4f6; padding: 12px; border-radius: 8px; font-size: 11px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+    .ok { background: #f0fdf4; border-color: #86efac; color: #166534; }
+    .erro { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <h1>🔬 Teste direto Supabase (do seu browser)</h1>
+  <p style="font-size:14px;color:#666">Isso testa a conexão direto do seu Mac pro Supabase — contorna o Vercel.</p>
+
+  <div class="box">
+    <label>URL do Supabase</label>
+    <input id="url" value="https://vlzbwniyoxgzgrelapji.supabase.co" />
+    <label style="margin-top:12px">Chave (anon/publishable)</label>
+    <input id="key" value="sb_publishable_cFcKXWqbzr8-6FARZqk8OA_HcvwZxkl" />
+    <button onclick="testar()">🚀 Testar conexão</button>
+  </div>
+
+  <div id="resultado"></div>
+
+  <script>
+    async function testar() {
+      const url = document.getElementById("url").value.trim();
+      const key = document.getElementById("key").value.trim();
+      const res = document.getElementById("resultado");
+      res.innerHTML = "<div class='box'>⏳ Testando…</div>";
+
+      const testes = [];
+
+      // Teste 1: /auth/v1/settings com apikey header
+      try {
+        const r = await fetch(`${url}/auth/v1/settings`, {
+          headers: { apikey: key }
+        });
+        const t = await r.text();
+        testes.push({
+          nome: "1️⃣ /auth/v1/settings (só apikey)",
+          status: r.status,
+          ok: r.ok,
+          body: t.slice(0, 400)
+        });
+      } catch (e) {
+        testes.push({ nome: "1️⃣ /auth/v1/settings", erro: e.message });
+      }
+
+      // Teste 2: /auth/v1/settings com Bearer
+      try {
+        const r = await fetch(`${url}/auth/v1/settings`, {
+          headers: { apikey: key, Authorization: `Bearer ${key}` }
+        });
+        const t = await r.text();
+        testes.push({
+          nome: "2️⃣ /auth/v1/settings (com Bearer)",
+          status: r.status,
+          ok: r.ok,
+          body: t.slice(0, 400)
+        });
+      } catch (e) {
+        testes.push({ nome: "2️⃣ /auth/v1/settings Bearer", erro: e.message });
+      }
+
+      // Teste 3: /rest/v1/
+      try {
+        const r = await fetch(`${url}/rest/v1/`, {
+          headers: { apikey: key, Authorization: `Bearer ${key}` }
+        });
+        const t = await r.text();
+        testes.push({
+          nome: "3️⃣ /rest/v1/",
+          status: r.status,
+          ok: r.ok,
+          body: t.slice(0, 400)
+        });
+      } catch (e) {
+        testes.push({ nome: "3️⃣ /rest/v1/", erro: e.message });
+      }
+
+      // Teste 4: signInWithPassword fake (deve retornar 400 se credenciais erradas — MAS o Supabase responde)
+      try {
+        const r = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+          method: "POST",
+          headers: {
+            apikey: key,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${key}`
+          },
+          body: JSON.stringify({ email: "teste@teste.com", password: "senhaerrada" })
+        });
+        const t = await r.text();
+        testes.push({
+          nome: "4️⃣ Login fake (deve dar 400)",
+          status: r.status,
+          ok: r.status === 400,
+          body: t.slice(0, 400)
+        });
+      } catch (e) {
+        testes.push({ nome: "4️⃣ Login fake", erro: e.message });
+      }
+
+      // Renderiza
+      res.innerHTML = testes.map(t => {
+        const cls = t.erro ? "erro" : (t.ok ? "ok" : "erro");
+        return `<div class='box ${cls}'>
+          <strong>${t.nome}</strong>
+          ${t.erro ? `<pre>❌ ${t.erro}</pre>` :
+            `<pre>Status: ${t.status} ${t.ok ? "✅" : "❌"}
+${t.body}</pre>`}
+        </div>`;
+      }).join("");
+    }
+  </script>
+</body>
+</html>

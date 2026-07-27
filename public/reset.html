@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resetar ConferePix</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #1D6EE6, #0EA5E9);
+      color: white;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    .box {
+      background: white;
+      color: #111;
+      border-radius: 20px;
+      padding: 32px 24px;
+      max-width: 400px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    p { color: #666; margin: 0 0 20px; font-size: 14px; line-height: 1.5; }
+    .status {
+      background: #f0f9ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin: 16px 0;
+      text-align: left;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    .success { background: #f0fdf4; border-color: #86efac; color: #166534; }
+    button {
+      background: #1D6EE6;
+      color: white;
+      border: 0;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:hover { background: #1854b8; }
+    .emoji { font-size: 48px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="emoji">🔧</div>
+    <h1>Resetar ConferePix</h1>
+    <p>Isso vai limpar o cache do app pra você conseguir abrir de novo. Seus dados na nuvem ficam preservados.</p>
+
+    <div id="status" class="status">Clica em "Resetar agora" pra começar…</div>
+
+    <button id="btn" onclick="resetTudo()">🚀 Resetar agora</button>
+  </div>
+
+  <script>
+    const status = document.getElementById("status");
+    const btn = document.getElementById("btn");
+
+    function log(txt) {
+      status.textContent += "\n" + txt;
+      status.scrollTop = status.scrollHeight;
+    }
+
+    async function resetTudo() {
+      btn.disabled = true;
+      btn.textContent = "Limpando…";
+      status.textContent = "Iniciando reset…";
+
+      try {
+        // 1. Desregistra todos os service workers
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          log(`🔄 ${regs.length} service worker(s) encontrado(s)`);
+          for (const r of regs) {
+            await r.unregister();
+            log(`✅ Desregistrado: ${r.scope}`);
+          }
+        } else {
+          log("ℹ️ Este navegador não tem service worker");
+        }
+
+        // 2. Apaga todos os caches
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          log(`🗑️ ${keys.length} cache(s) encontrado(s)`);
+          for (const k of keys) {
+            await caches.delete(k);
+            log(`✅ Cache apagado: ${k}`);
+          }
+        }
+
+        // 3. Limpa localStorage do app (mantém sessão do Supabase)
+        try {
+          const supabaseKey = Object.keys(localStorage).find((k) => k.startsWith("sb-"));
+          const supabaseVal = supabaseKey ? localStorage.getItem(supabaseKey) : null;
+          localStorage.clear();
+          if (supabaseKey && supabaseVal) {
+            localStorage.setItem(supabaseKey, supabaseVal);
+            log("✅ localStorage limpo (login preservado)");
+          } else {
+            log("✅ localStorage limpo");
+          }
+        } catch (e) {
+          log("⚠️ Não consegui limpar localStorage: " + e.message);
+        }
+
+        status.className = "status success";
+        log("\n🎉 Reset completo! Redirecionando em 2 segundos…");
+        btn.textContent = "✅ Pronto!";
+
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      } catch (e) {
+        log("❌ Erro: " + e.message);
+        btn.disabled = false;
+        btn.textContent = "🚀 Tentar de novo";
+      }
+    }
+  </script>
+</body>
+</html>
